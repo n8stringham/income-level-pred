@@ -1,11 +1,10 @@
 '''
-This program trains a decision tree model.
+This program trains a logistic regression model.
 '''
-
+from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import OneHotEncoder
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.pipeline import make_pipeline
 from sklearn.metrics import accuracy_score
 
@@ -21,8 +20,6 @@ parser = argparse.ArgumentParser(description='A program that evaluates a machine
 parser.add_argument('--train', required=True)
 parser.add_argument('--test', required=True)
 parser.add_argument('--submission_name')
-parser.add_argument('--mode', choices=['rf', 'boost'])
-
 
 # Hyperparameters
 #parser.add_argument('--num_trees')
@@ -128,21 +125,16 @@ if __name__ == '__main__':
     print("test_X.shape=",test_X.shape)
 
     # Construct the Pipeline
-    if args.mode == 'rf':
-        pipe = make_pipeline(
-        RandomForestClassifier(n_estimators=500, random_state=47)
-        )
-        save_dir = f'models/rf/{args.submission_name}'
-
-    if args.mode == 'boost':
-        # Gradient boosting with decision stumps - Adaboost
-        pipe = make_pipeline(
-        GradientBoostingClassifier(n_estimators=500, learning_rate=1.0, max_depth=1, random_state=47)
-        )
-        save_dir = f'models/boost/{args.submission_name}'
+    pipe = make_pipeline(
+            StandardScaler(),
+            LogisticRegression(random_state=42)
+            )
 
     # Fit the Pipeline
     model = pipe.fit(train_X, train_y)
+
+    acc = accuracy_score(pipe.predict(train_X), train_y)
+    print("acc=",acc)
 
     # Calculate the ROC score for the training data
     print("train_X.shape=",train_X.shape)
@@ -153,6 +145,8 @@ if __name__ == '__main__':
     print("res=",res)
 
     if args.submission_name is not None:
+        asd
+        save_dir = f'models/logistic/{args.submission_name}'
         # Save the Pipeline
         with open(f'{save_dir}.model', 'wb') as f:
             pickle.dump(model, f)

@@ -44,38 +44,46 @@ def label_dist(data):
     '''
     return data['income>50K'].value_counts()
 
-def submission_csv(filename, preds):
-    '''
-    Generate a csv to be submitted on Kaggle.
-    '''
-    answer = input('Are you sure you want to save a new csv?').lower()
-    print("answer=",answer)
-    asd
-    df = pd.DataFrame(preds, columns=['ID', 'Prediction'])
-    df.to_csv(filename+'.csv', index=False)
-    print(f'csv written to {filename}.csv.')
-
-
 
 if __name__ == '__main__':
 
     # Let's compute some statistics about the data
     train_data = pd.read_csv(args.train)
-    #print("train_data.head()=",train_data.head())
-    #counts = train_data.apply(lambda x: len(x.unique()))
-    #print("counts=",counts)
 
-#
-#    # find most frequent label in the training set.
-#    most_freq_label = label_dist(train_data).index[0]
-#    print("most_freq_label=",most_freq_label)
-#
-#    # make preds on test data
-#    test_data = pd.read_csv(args.test)
-#    preds = [[i,0] for i in test_data['ID'].to_list()] 
-#    #FIXME make a submission for the randomforest
-#
-    
+    # How many training instances do we have?
+    num_train = len(train_data)
+    print("num_train=",num_train)
 
-    # make a csv submission for always guessing most freq label.
-    #submission_csv('freq-baseline', preds)
+    # what is the distribution of the labels?
+    label_dist(train_data)
+
+    # Compute descriptive statistics for each feature
+    for col in train_data.columns:
+        print("col=",col)
+        stats = train_data[col].describe()
+        print(stats)
+        print()
+   
+    # How many and which columns have missing values?
+    res = train_data.isin(['?']).sum(axis=0)
+    print("res=",res)
+
+    # number of training instances with an unk value
+    unk_count_row = train_data.isin(['?']).sum(axis=1)
+    print("unk_count_row=",unk_count_row)
+
+    #max number of unk values in a training instance
+    unk_max_row = unk_count_row.max()
+    print("unk_max_row=",unk_max_row)
+
+    num_max_rows = unk_count_row.isin([3]).sum()
+    print("unk_count_row.isin([2]).sum()=",unk_count_row.isin([2]).sum())
+    print("unk_count_row.isin([1]).sum()=",unk_count_row.isin([1]).sum())
+    print("num_max_rows=",num_max_rows)
+
+    # compute the rest of these later
+
+
+    # How many rows have missing values?
+   #
+
