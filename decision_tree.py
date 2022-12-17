@@ -8,6 +8,8 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.pipeline import make_pipeline
 from sklearn.metrics import accuracy_score
+from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
+
 
 #from sklearn.metrics import roc_curve, auc
 from sklearn.metrics import roc_auc_score
@@ -22,6 +24,7 @@ parser.add_argument('--train', required=True)
 parser.add_argument('--test', required=True)
 parser.add_argument('--submission_name')
 parser.add_argument('--mode', choices=['rf', 'boost'])
+parser.add_argument('--cv', action='store_true')
 
 
 # Hyperparameters
@@ -137,18 +140,33 @@ if __name__ == '__main__':
     if args.mode == 'boost':
         # Gradient boosting with decision stumps - Adaboost
         pipe = make_pipeline(
-        GradientBoostingClassifier(n_estimators=500, learning_rate=1.0, max_depth=1, random_state=47)
+        GradientBoostingClassifier(n_estimators=800, learning_rate=.1, max_depth=3, random_state=47)
         )
         save_dir = f'models/boost/{args.submission_name}'
 
-    # Fit the Pipeline
-    model = pipe.fit(train_X, train_y)
+    if args.cv:
+        # grid search with k-fold Cross Validation
+        param_space = {'gradientboostingclassifier__n_estimators': [100, 300, 500, 600, 800], 'gradientboostingclassifier__learning_rate':[1, .5, .1, .01], 'gradientboostingclassifier__max_depth': [1, 2, 3]}
+
+        #grid = GridSearchCV(pipe, param_space, cv=10, scoring='accuracy', return_train_score=False)
+        search = RandomizedSearchCV(pipe, param_space, random_state=47)
+        search.fit(train_X, train_y)
+        print("Best parameter (CV score=%0.3f):" % search.best_score_)
+        print(f"Best params = {search.best_params_}")
+
+        model = search.best_estimator_
+        df = pd.DataFrame(search.cv_results_)[['mean_test_score', 'std_test_score', 'params']]
+        print("df=",df)
+        
+    else:
+        # Fit the Pipeline
+        model = pipe.fit(train_X, train_y)
 
     # Calculate the ROC score for the training data
-    print("train_X.shape=",train_X.shape)
-    print("train_y.shape=",train_y.shape)
-    print("train_y[:10]=",train_y[:10])
-    preds_probs = pipe.predict_proba(train_X)[:,1]
+    #print("train_X.shape=",train_X.shape)
+    #print("train_y.shape=",train_y.shape)
+    #print("train_y[:10]=",train_y[:10])
+    preds_probs = model.predict_proba(train_X)[:,1]
     res = roc_auc_score(train_y, preds_probs)
     print("res=",res)
 
@@ -164,5 +182,3 @@ if __name__ == '__main__':
 
         # Make Submission CSV
         submission_csv(f'{save_dir}', preds_probs, test_ids)
-        
-

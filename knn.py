@@ -1,12 +1,13 @@
 '''
-This program trains a logistic regression model.
+This program trains a knn classification model
 '''
 from sklearn.preprocessing import StandardScaler
-from sklearn.linear_model import LogisticRegression
+from sklearn.neighbors import KNeighborsClassifier
 from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.pipeline import make_pipeline
 from sklearn.metrics import accuracy_score
+from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
 
 #from sklearn.metrics import roc_curve, auc
 from sklearn.metrics import roc_auc_score
@@ -20,10 +21,7 @@ parser = argparse.ArgumentParser(description='A program that evaluates a machine
 parser.add_argument('--train', required=True)
 parser.add_argument('--test', required=True)
 parser.add_argument('--submission_name')
-
-# Hyperparameters
-#parser.add_argument('--num_trees')
-#parser.add_argument('--num_trees')
+parser.add_argument('--cv', action='store_true')
 
 args = parser.parse_args()
 
@@ -127,34 +125,48 @@ if __name__ == '__main__':
     # Construct the Pipeline
     pipe = make_pipeline(
             StandardScaler(),
-            LogisticRegression(random_state=42)
+            KNeighborsClassifier(),
             )
 
-    # Fit the Pipeline
-    model = pipe.fit(train_X, train_y)
+    if args.cv:
+        # define the parameter values that should be searched
+        k = list(range(1, 21))
+        weights = ['uniform', 'distance']
+        # random search with k-fold Cross Validation
+        param_space = {'kneighborsclassifier__n_neighbors': k, 'kneighborsclassifier__weights': weights}
 
-    acc = accuracy_score(pipe.predict(train_X), train_y)
-    print("acc=",acc)
+        #grid = GridSearchCV(pipe, param_space, cv=10, scoring='accuracy', return_train_score=False)
+        search = RandomizedSearchCV(pipe, param_space, random_state=47)
+        search.fit(train_X, train_y)
+        print("Best parameter (CV score=%0.3f):" % search.best_score_)
+        print(f"Best params = {search.best_params_}")
+
+        model = search.best_estimator_
+        df = pd.DataFrame(search.cv_results_)[['mean_test_score', 'std_test_score', 'params']]
+        print("df=",df)
+        
+    else:
+        # Fit the Pipeline
+        model = pipe.fit(train_X, train_y)
+
+    #train_acc = accuracy_score(pipe.predict(train_X), train_y)
+    #print("train_acc=",train_acc)
 
     # Calculate the ROC score for the training data
-    print("train_X.shape=",train_X.shape)
-    print("train_y.shape=",train_y.shape)
-    print("train_y[:10]=",train_y[:10])
-    preds_probs = pipe.predict_proba(train_X)[:,1]
+    preds_probs = model.predict_proba(train_X)[:,1]
     res = roc_auc_score(train_y, preds_probs)
     print("res=",res)
 
     if args.submission_name is not None:
-        asd
-        save_dir = f'models/logistic/{args.submission_name}'
+        save_dir = f'models/knn/{args.submission_name}'
         # Save the Pipeline
         with open(f'{save_dir}.model', 'wb') as f:
             pickle.dump(model, f)
 
-        print("pipe.classes_=",pipe.classes_)
+        #print("pipe.classes_=",pipe.classes_)
 
         # Make predictions
-        preds_probs = pipe.predict_proba(test_X)[:,1]
+        preds_probs = model.predict_proba(test_X)[:,1]
 
         # Make Submission CSV
         submission_csv(f'{save_dir}', preds_probs, test_ids)
